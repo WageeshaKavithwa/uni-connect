@@ -1,0 +1,479 @@
+/* App layout (sidebar + topbar + content)
+   Uses existing theme CSS variables from src/index.css
+*/
+
+.appFrame {
+	min-height: 100vh;
+	display: flex;
+	background: var(--bg);
+	color: var(--fg);
+}
+
+/* Sidebar */
+.appSidebar {
+	position: sticky;
+	top: 0;
+	height: 100vh;
+	width: 280px;
+	flex: 0 0 280px;
+	border-right: 1px solid var(--border);
+	/* background: color-mix(in srgb, var(--fg) 6%, var(--surface)); */
+    background-color: white;
+	display: flex;
+	flex-direction: column;
+	z-index: 20;
+	transition: width 160ms ease, transform 160ms ease;
+}
+
+.appSidebarCollapsed {
+	width: 76px;
+	flex-basis: 76px;
+}
+
+.appSidebarCollapsed .appLogoBtn {
+	display: none;
+}
+
+.appSidebarCollapsed .appSidebarHeader {
+	justify-content: flex-end;
+}
+
+.appSidebarHeader {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 14px 12px;
+	/* border-bottom: 1px solid var(--border); */
+}
+
+.appLogoBtn {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: inherit;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	align-items: center;
+    justify-content: center;
+	min-width: 0;
+	cursor: pointer;
+}
+
+.appLogo {
+	width: 150px;
+	height: auto;
+	border-radius: 10px;
+	/* border: 1px solid var(--border); */
+	/* background: color-mix(in srgb, var(--bg) 88%, transparent); */
+	object-fit: contain;
+}
+
+.appBrandText {
+	font-weight: 800;
+	letter-spacing: -0.2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appIconBtn {
+	display: inline-grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: transparent;
+	color: var(--fg);
+}
+
+.appIconBtn:hover {
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+.appNav {
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	overflow: auto;
+}
+
+.appNavSection {
+	display: grid;
+	gap: 6px;
+}
+
+.appNavLink {
+	display: grid;
+	grid-template-columns: 40px 1fr;
+	align-items: center;
+	gap: 8px;
+	height: 42px;
+	padding: 0 10px;
+	border-radius: 12px;
+	text-decoration: none;
+	color: var(--fg);
+	border: 1px solid transparent;
+}
+
+.appNavLinkActive {
+	border-color: var(--border);
+	background: var(--brand-soft);
+	color: white;
+}
+
+.appNavIcon {
+	display: inline-grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	color: color-mix(in srgb, var(--fg) 92%, transparent);
+}
+
+.appNavLinkActive .appNavIcon {
+	color: white;
+}
+
+
+
+.appNavLabel {
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appNavGroup {
+	display: grid;
+	gap: 6px;
+}
+
+.appNavGroupBtn {
+	appearance: none;
+	border: 1px solid transparent;
+	background: transparent;
+	color: inherit;
+	border-radius: 12px;
+	padding: 0 10px;
+	height: 42px;
+	display: grid;
+	grid-template-columns: 40px 1fr auto;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+}
+
+.appNavGroupBtn:hover {
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+.appNavGroupBtnActive {
+	border-color: var(--border);
+	background: var(--brand-soft);
+}
+
+.appNavChevron {
+	display: inline-grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 10px;
+}
+
+.appChevron {
+	transition: transform 160ms ease;
+}
+
+.appChevronOpen {
+	transform: rotate(180deg);
+}
+
+.appNavChildren {
+	display: none;
+	padding-left: 14px;
+}
+
+.appNavChildrenOpen {
+	display: grid;
+	gap: 6px;
+}
+
+.appNavChild {
+	display: grid;
+	grid-template-columns: 12px 1fr;
+	align-items: center;
+	gap: 10px;
+	height: 36px;
+	padding: 0 10px;
+	border-radius: 12px;
+	text-decoration: none;
+	color: color-mix(in srgb, var(--fg) 92%, transparent);
+	border: 1px solid transparent;
+}
+
+.appNavChild:hover {
+	background: color-mix(in srgb, var(--bg) 88%, transparent);
+	text-decoration: none;
+}
+
+.appNavChildActive {
+	border-color: var(--border);
+	background: color-mix(in srgb, var(--brand) 10%, transparent);
+}
+
+.appNavChildDot {
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+.appNavChildActive .appNavChildDot {
+	background: var(--brand);
+}
+
+.appNavChildLabel {
+	font-size: var(--text-sm);
+	font-weight: 650;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Collapse behaviors */
+.appSidebarCollapsed .appBrandText {
+	display: none;
+}
+
+.appSidebarCollapsed .appNavLink {
+	grid-template-columns: 1fr;
+	justify-items: center;
+	padding: 0;
+}
+
+.appSidebarCollapsed .appNavLabel {
+	display: none;
+}
+
+.appSidebarCollapsed .appNavGroupBtn {
+	grid-template-columns: 1fr;
+	justify-items: center;
+	padding: 0;
+}
+
+.appSidebarCollapsed .appNavChevron {
+	display: none;
+}
+
+.appSidebarCollapsed .appNavChildren {
+	display: none;
+}
+
+.appSidebarCollapsed .appCollapseBtn {
+	transform: translateX(-2px);
+}
+
+/* Main area */
+.appMain {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.appTopbar {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	height: 56px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 14px;
+	border-bottom: 1px solid var(--border);
+	background-color: white;
+}
+
+.appTopbarGrow {
+	flex: 1 1 auto;
+}
+
+.appTopbarSearch {
+	width: min(520px, 45vw);
+}
+
+.appSearchInput {
+	width: 100%;
+	height: 38px;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	background: color-mix(in srgb, var(--bg) 92%, transparent);
+	padding: 0 14px;
+	outline: none;
+}
+
+.appSearchInput::placeholder {
+	color: color-mix(in srgb, var(--muted) 85%, transparent);
+}
+
+.appTopbarAvatarBtn {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	padding: 0;
+	margin: 0;
+}
+
+.appTopbarTitle {
+	font-weight: 800;
+	letter-spacing: -0.2px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appContent {
+	padding: 16px;
+}
+
+/* Sidebar footer */
+.appSidebarFooter {
+	margin-top: auto;
+	padding: 12px;
+	border-top: 1px solid var(--border);
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: center;
+	gap: 10px;
+}
+
+.appSidebarFooterLeft {
+	display: grid;
+	grid-template-columns: 40px 1fr;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+
+.appLogoutBtn {
+	width: 40px;
+	height: 40px;
+}
+
+.material-symbols-outlined {
+	font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 24;
+	font-size: 22px;
+	line-height: 1;
+}
+
+.appAvatar {
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	background: var(--brand-soft);
+	display: grid;
+	place-items: center;
+}
+
+.appAvatarText {
+	font-weight: 900;
+}
+
+.appUserMeta {
+	min-width: 0;
+}
+
+.appUserName {
+	font-weight: 800;
+	line-height: 1.1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appUserRole {
+	font-size: var(--text-xs);
+	color: var(--muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appSidebarCollapsed .appSidebarFooter {
+	grid-template-columns: 1fr;
+	justify-items: center;
+}
+
+.appSidebarCollapsed .appUserMeta {
+	display: none;
+}
+
+/* Basic page container (for placeholder pages) */
+.appPage {
+	max-width: 1100px;
+	margin: 0 auto;
+	border: 1px solid var(--border);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	padding: 16px;
+}
+
+.appPageTitle {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 900;
+	letter-spacing: -0.3px;
+}
+
+.appPageSub {
+	margin: 8px 0 0;
+	color: var(--muted);
+	font-size: var(--text-sm);
+}
+
+/* Mobile/off-canvas */
+.appOverlay {
+	display: none;
+}
+
+.appMobileMenuBtn {
+	display: none;
+}
+
+@media (max-width: 900px) {
+	.appSidebar {
+		position: fixed;
+		left: 0;
+		top: 0;
+		transform: translateX(-102%);
+		box-shadow: 0 28px 80px color-mix(in srgb, var(--fg) 22%, transparent);
+	}
+
+	.appSidebarMobileOpen {
+		transform: translateX(0);
+	}
+
+	.appOverlay {
+		position: fixed;
+		inset: 0;
+		background: color-mix(in srgb, var(--fg) 38%, transparent);
+		display: block;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 160ms ease;
+		z-index: 15;
+	}
+
+	.appOverlayOpen {
+		opacity: 1;
+		pointer-events: auto;
+	}
+
+	.appMobileMenuBtn {
+		display: inline-grid;
+	}
+}

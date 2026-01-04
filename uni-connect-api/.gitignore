@@ -1,0 +1,26 @@
+# Build artifacts
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+.idea/
+*.sln.iml
+
+# ASP.NET Core secrets
+secrets.json
+
+# Logs
+*.log
+
+# Environment config
+.env
+
+# Visual Studio Code
+.vscode/
