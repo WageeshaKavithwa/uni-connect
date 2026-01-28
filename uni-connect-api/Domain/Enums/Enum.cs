@@ -10,5 +10,6 @@ public enum CategoryTypes
 {
     Announcement = 1,
     Notes = 2,
-    Events = 3
+    Events = 3,
+    RoommateFinder = 4
 }

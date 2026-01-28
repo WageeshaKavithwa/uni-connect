@@ -43,7 +43,7 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("CoreUsers");
+                    b.ToTable("CoreUsers", (string)null);
                 });
 #pragma warning restore 612, 618
         }

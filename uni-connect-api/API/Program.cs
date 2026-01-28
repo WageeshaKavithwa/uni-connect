@@ -30,6 +30,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+
+// Add SignalR
+builder.Services.AddSignalR();
+
 var connectionString = builder.Configuration.GetConnectionString("CoreConnection");
 builder.Services.AddDbContext<CoreDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));

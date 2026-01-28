@@ -1,3 +1,3 @@
 window.env = {
-  API_URL: "https://localhost:7264/api",
+  API_URL: "https://uni-connect.runasp.net/api",
 };

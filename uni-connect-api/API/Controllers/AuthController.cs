@@ -61,6 +61,13 @@ public class AuthController : ControllerBase
         var result = await _mediator.Send(query);
         return Ok(result);
     }
+
+    [HttpGet("get-users")]
+    public async Task<ActionResult> GetUsers()
+    {
+        var result = await _mediator.Send(new GetAllUsers());
+        return Ok(result);
+    }
     
     [HttpPost("register")]
     public async Task<IActionResult> RegisterUser([FromBody] CreateUserDto userData)

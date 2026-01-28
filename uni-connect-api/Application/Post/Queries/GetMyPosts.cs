@@ -14,6 +14,7 @@ public class GetMyPostsHandler (IApplicationDbContext dbContext) : IRequestHandl
     public async Task<List<MyPostResponse>> Handle(GetMyPosts request, CancellationToken cancellationToken)
     {
         var posts = await dbContext.Posts
+            .OrderByDescending(p => p.CreatedAt)
             .Where(p => p.UserId == request.UserId)
             .ToListAsync(cancellationToken);
         

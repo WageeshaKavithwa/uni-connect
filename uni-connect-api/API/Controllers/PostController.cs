@@ -41,6 +41,14 @@ public class PostController : ControllerBase
         return Ok(res);
     }
     
+    [HttpGet("save/{id}")]
+    public async Task<IActionResult> GetSavedPostById(int id)
+    {
+        var query = new GetSavedPosts() { UserId = id };
+        var res = await _mediator.Send(query);
+        return Ok(res);
+    }
+    
     [HttpDelete("{id}/user/{userId}")]
     public async Task<IActionResult> DeletePost(int id, int userId)
     {

@@ -4,6 +4,7 @@ using Domain.Core;
 using Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using System.Linq;
+using Domain.System;
 
 namespace API.Controllers;
 
@@ -11,11 +12,14 @@ namespace API.Controllers;
 public class SeedController : ControllerBase
 {
     private readonly CoreDbContext _dbContext;
-    public SeedController(CoreDbContext dbContext)
+    private readonly ApplicationDbContext _appDbContext;
+
+    public SeedController(CoreDbContext dbContext, ApplicationDbContext applicationDbContext)
     {
         _dbContext = dbContext;
+        _appDbContext = applicationDbContext;
     }
-    
+
     [HttpPost("api/seed-database")]
     public async Task<IActionResult> SeedDatabase()
     {
@@ -53,7 +57,8 @@ public class SeedController : ControllerBase
                 // Build a readable name from the email local part (e.g. "alice.smith" -> "Alice Smith")
                 var localPart = sampleEmails[i].Split('@')[0];
                 var nameParts = localPart.Split('.', '_');
-                var displayName = string.Join(" ", nameParts.Select(p => string.IsNullOrWhiteSpace(p) ? p : char.ToUpper(p[0]) + p.Substring(1)));
+                var displayName = string.Join(" ",
+                    nameParts.Select(p => string.IsNullOrWhiteSpace(p) ? p : char.ToUpper(p[0]) + p.Substring(1)));
 
                 users.Add(new CoreUsers
                 {

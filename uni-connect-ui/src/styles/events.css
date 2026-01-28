@@ -1,0 +1,12 @@
+/* Events page overrides on top of marketplace.css */
+
+.eventsPage .itemImageWrapper,
+.eventsPage .itemImagesWrapper {
+	aspect-ratio: 16 / 9;
+}
+
+/* Show the whole thumbnail instead of cropping */
+.eventsPage .itemImage {
+	object-fit: contain;
+	background: #fffaf3;
+}

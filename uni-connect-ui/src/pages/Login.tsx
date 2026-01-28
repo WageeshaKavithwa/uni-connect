@@ -172,7 +172,7 @@ export default function Login() {
             setTimeout(() => {
                 setIsLoading(false);
                 showSuccess('Logged in successfully.');
-                navigate('/app');
+                navigate('/app/posts');
             }, 3000);
         } catch (error: any) {
             setIsLoading(false);
@@ -192,7 +192,7 @@ export default function Login() {
                     <div className="loginBody">
                         <h1 className="loginTitle">CREATE YOUR PROFILE</h1>
                         <p className="loginSub">
-                            Already have an account? <a style={{cursor: "pointer"}} onClick={() => setIsLoginMode(true)}>Login</a>
+                            Already have an account? <a style={{cursor: "pointer", color: "gray"}} onClick={() => setIsLoginMode(true)}>Login</a>
                         </p>
 
                         <form
@@ -284,8 +284,8 @@ export default function Login() {
                         </form>
 
                         <p className="legal">
-                            By registering, you accept UniConnect <a href="#tos">Terms</a>{' '}
-                            and <a href="#privacy">Privacy policy</a>.
+                            By registering, you accept UniConnect <a href="#tos" style={{color: "gray"}}>Terms</a>{' '}
+                            and <a href="#privacy" style={{color: "gray"}}>Privacy policy</a>.
                         </p>
                     </div>
                 )}
@@ -294,7 +294,7 @@ export default function Login() {
                     <div className="loginBody">
                         <h1 className="loginTitle">LOGIN TO YOUR ACCOUNT</h1>
                         <p className="loginSub">
-                            Don't have an account? <a style={{cursor: "pointer"}} onClick={() => setIsLoginMode(false)}>Create one</a>
+                            Don't have an account? <a style={{cursor: "pointer", color: "gray"}} onClick={() => setIsLoginMode(false)}>Create one</a>
                         </p>
                         <form className="form" onSubmit={handleLoginUser}>
                             <label className="fieldLabel" htmlFor="emailLogin">

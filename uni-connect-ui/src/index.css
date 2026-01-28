@@ -15,7 +15,7 @@
 	--radius-md: 10px;
 
 	/* Theme (orange + black) */
-	--bg: #edebeb71;
+	--bg: #f0f0f071;
 	--fg: #0a0a0a;
 	--muted: #6b5e55;
 	--border: #f2d5b1;
@@ -23,7 +23,33 @@
 
 	--brand: #f97316;
 	--brand-contrast: #0a0a0a;
-	--brand-soft: color-mix(in srgb, var(--brand) 68%, transparent);
+
+	/* Channel helpers for environments without color-mix support */
+	--bg-rgb: 237, 235, 235;
+	--fg-rgb: 10, 10, 10;
+	--muted-rgb: 107, 94, 85;
+	--surface-rgb: 255, 250, 243;
+	--brand-rgb: 249, 115, 22;
+
+	--brand-soft-alpha: 0.68;
+	--brand-soft-percent: 68%;
+	--brand-soft: rgba(var(--brand-rgb), var(--brand-soft-alpha));
+	--brand-soft: color-mix(in srgb, var(--brand) var(--brand-soft-percent), transparent);
+
+	--bg-86: rgba(var(--bg-rgb), 0.86);
+	--bg-88: rgba(var(--bg-rgb), 0.88);
+	--bg-92: rgba(var(--bg-rgb), 0.92);
+	--fg-18: rgba(var(--fg-rgb), 0.18);
+	--fg-22: rgba(var(--fg-rgb), 0.22);
+	--fg-38: rgba(var(--fg-rgb), 0.38);
+	--fg-45: rgba(var(--fg-rgb), 0.45);
+	--fg-70: rgba(var(--fg-rgb), 0.7);
+	--fg-92: rgba(var(--fg-rgb), 0.92);
+	--muted-60: rgba(var(--muted-rgb), 0.6);
+	--muted-85: rgba(var(--muted-rgb), 0.85);
+	--muted-90: rgba(var(--muted-rgb), 0.9);
+	--brand-10: rgba(var(--brand-rgb), 0.1);
+	--surface-85: rgba(var(--surface-rgb), 0.85);
 
 	/* Focus */
 	--focus-ring: var(--brand);
@@ -41,7 +67,15 @@
 
 		--brand: #fb923c;
 		--brand-contrast: #070707;
-		--brand-soft: color-mix(in srgb, var(--brand) 18%, transparent);
+		--bg-rgb: 7, 7, 7;
+		--fg-rgb: 255, 247, 237;
+		--muted-rgb: 182, 168, 159;
+		--surface-rgb: 17, 17, 17;
+		--brand-rgb: 251, 146, 60;
+		--brand-soft-alpha: 0.18;
+		--brand-soft-percent: 18%;
+		--brand-soft: rgba(var(--brand-rgb), var(--brand-soft-alpha));
+		--brand-soft: color-mix(in srgb, var(--brand) var(--brand-soft-percent), transparent);
 
 		--focus-ring: var(--brand);
 
@@ -66,8 +100,8 @@ body {
 	font-family: var(--font-sans);
 	font-size: var(--text-base);
 	line-height: 1.5;
-	color: var(--fg);
-	background: var(--bg);
+	color: #0a0a0a;
+	background: #f0f0f071;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	text-rendering: optimizeLegibility;

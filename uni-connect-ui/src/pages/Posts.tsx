@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { createPost, getAllPosts, savePost } from "../services/post-api";
 import "../styles/posts.css";
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import { showError, showSuccess } from "../components/Toast";
+import { checkChatExists, createChat } from "../services/chats-api";
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
 
@@ -95,12 +97,12 @@ export default function Posts() {
     const [savedIds, setSavedIds] = useState<number[]>(() => readSavedIds());
     const [expandedCaptionIds, setExpandedCaptionIds] = useState<number[]>([]);
     const [filterOpen, setFilterOpen] = useState(false);
-    const [selectedFilter, setSelectedFilter] = useState<"announcement" | "notes" | "events" | null>(null);
+    const [selectedFilter, setSelectedFilter] = useState<"announcement" | "notes" | "events" | "roommateFinder" | null>(null);
     const filterRef = useRef<HTMLDivElement | null>(null);
 
     const [createOpen, setCreateOpen] = useState(false);
     const [createCaption, setCreateCaption] = useState("");
-    const [createCategory, setCreateCategory] = useState<"Announcement" | "Notes" | "Events" | "">("");
+    const [createCategory, setCreateCategory] = useState<"Announcement" | "Notes" | "Events" | "RoommateFinder" | "">("");
     const [createFiles, setCreateFiles] = useState<File[]>([]);
     const [createPreviewUrls, setCreatePreviewUrls] = useState<string[]>([]);
     const [createSubmitting, setCreateSubmitting] = useState(false);
@@ -110,6 +112,55 @@ export default function Posts() {
     );
 
     const token = sessionStorage.getItem('jwtToken') || '';
+    const me = Number(sessionStorage.getItem("userId") || "0");
+    const navigate = useNavigate();
+
+    const handleChatWithAuthor = async (post: PostResponse) => {
+        const authorId = Number(post.userId ?? 0);
+
+        if (!authorId || authorId === 0) {
+            showError("Author information not available");
+            return;
+        }
+
+        if (!me || me === 0) {
+            showError("Please login again to start a chat");
+            return;
+        }
+
+        if (authorId === me) {
+            return;
+        }
+
+        const authorName = post.userName ?? "there";
+        const initialMessage = post.category
+            ? `Hi ${authorName}, I saw your post in #${post.category}. Can we chat?`
+            : `Hi ${authorName}, I saw your post. Can we chat?`;
+
+        try {
+            const res = await checkChatExists(token, me, authorId);
+            if (res.data === true) {
+                navigate("/app/chats", {
+                    state: {
+                        openWithUserId: authorId,
+                        initialMessage,
+                    },
+                });
+            } else {
+                const created = await createChat(token, { user1: me, user2: authorId });
+                const conversationId = (created.data?.id ?? created.data?.Id) as number | undefined;
+                navigate("/app/chats", {
+                    state: {
+                        openConversationId: conversationId,
+                        openWithUserId: authorId,
+                        initialMessage,
+                    },
+                });
+            }
+        } catch (error) {
+            showError("Failed to initiate chat");
+        }
+    };
 
     const handleGetPosts = async () => {
         try {
@@ -143,7 +194,8 @@ export default function Posts() {
         if (!selectedFilter) return "Filter";
         if (selectedFilter === "announcement") return "Filter: Announcement";
         if (selectedFilter === "notes") return "Filter: Notes";
-        return "Filter: Events";
+        if (selectedFilter === "events") return "Filter: Events";
+        if (selectedFilter === "roommateFinder") return "Filter: Roommate Finder";
     }, [selectedFilter]);
 
     useEffect(() => {
@@ -158,14 +210,6 @@ export default function Posts() {
         window.addEventListener("mousedown", onMouseDown);
         return () => window.removeEventListener("mousedown", onMouseDown);
     }, [filterOpen]);
-
-    const toggleSave = (postId: number) => {
-        setSavedIds((prev) => {
-            const next = prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId];
-            writeSavedIds(next);
-            return next;
-        });
-    };
 
     const toggleCaption = (postId: number) => {
         setExpandedCaptionIds((prev) => (prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]));
@@ -285,8 +329,17 @@ export default function Posts() {
     const handleSavePost = async (postId: number) => {
         try {
             const userId = sessionStorage.getItem("userId") || "";
-            await savePost(postId, Number(userId), "Add", token);
-            showSuccess("Post saved");
+            const isSaved = savedSet.has(postId);
+            const type = isSaved ? "Remove" : "Add";
+            await savePost(postId, Number(userId), type, token);
+
+            setSavedIds((prev) => {
+                const next = prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId];
+                writeSavedIds(next);
+                return next;
+            });
+
+            showSuccess(isSaved ? "Removed from favourites" : "Saved to favourites");
         } catch (e: any) {
             const message = e?.response?.data?.Message || e?.message || "Failed to save post";
             showError(message);
@@ -345,6 +398,17 @@ export default function Posts() {
                             >
                                 Events
                             </button>
+                            <button
+                                type="button"
+                                role="menuitem"
+                                className="postsFilterItem"
+                                onClick={() => {
+                                    setSelectedFilter("roommateFinder");
+                                    setFilterOpen(false);
+                                }}
+                            >
+                                Roommate Finder
+                            </button>
                         </div>
                     )}
                 </div>
@@ -392,7 +456,14 @@ export default function Posts() {
                     <div key={post.id} className="postsCard">
                         <div className="postTopRow">
                             <div>
-                                <div className="postUserName">{post.userName ?? "Unknown"}</div>
+                                <button
+                                    type="button"
+                                    className="postUserName postUserNameButton"
+                                    onClick={() => handleChatWithAuthor(post)}
+                                    aria-label={`Chat with ${post.userName ?? "post author"}`}
+                                >
+                                    {post.userName ?? "Unknown"}
+                                </button>
                                 <div className="postsMuted">{formatDate(post.createdAt)}</div>
                             </div>
 
@@ -519,6 +590,7 @@ export default function Posts() {
                             <option value="Announcement">Announcement</option>
                             <option value="Notes">Notes</option>
                             <option value="Events">Events</option>
+                            <option value="RoommateFinder">Roommate Finder</option>
                         </select>
 
                         <label className="createLabel" htmlFor="postCaption">
