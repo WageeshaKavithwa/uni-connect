@@ -108,15 +108,15 @@ export default function Chats() {
         fetchChats();
     }, []);
 
-    // Prefill composer draft when coming from e.g. Marketplace
+   
     useEffect(() => {
         if (navState?.initialMessage && !draft) {
             setDraft(navState.initialMessage);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        
     }, [navState?.initialMessage]);
 
-    // Auto-open the intended conversation (by id, or by participant match)
+    
     useEffect(() => {
         if (!chats || chats.length === 0) return;
         if (activeId) return;
@@ -158,19 +158,19 @@ export default function Chats() {
         });
     }, [query, displayChats]);
 
-    // Fetch messages when activeId changes
+    
     useEffect(() => {
         const fetchMessages = async () => {
             if (activeId) {
                 try {
                     const response = await getMessagesByChat(token, activeId);
                     setMessages(response.data);
-                    // mark messages as read on open
+                   
                     try {
                         await markMessagesAsRead(token, { conversationId: activeId, userId: Number(userId) });
                         setChats((prev) => prev.map((c) => (c.id === activeId ? { ...c, unreadCount: 0 } : c)));
                     } catch {
-                        // ignore mark-as-read errors
+                        
                     }
                 } catch {
                     setMessages([]);
@@ -182,7 +182,7 @@ export default function Chats() {
 
     const clickTimer = useRef<number | null>(null);
 
-    // refresh conversations + messages on any click (debounced)
+    
     useEffect(() => {
         const handler = () => {
             if (clickTimer.current) {
@@ -199,14 +199,14 @@ export default function Chats() {
                                 await markMessagesAsRead(token, { conversationId: activeId, userId: Number(userId) });
                                 setChats((prev) => prev.map((c) => (c.id === activeId ? { ...c, unreadCount: 0 } : c)));
                             } catch {
-                                // ignore
+                               
                             }
                         } catch {
-                            // ignore
+                            
                         }
                     }
                 } catch {
-                    // ignore
+                    
                 }
             }, 250);
         };
@@ -250,7 +250,7 @@ export default function Chats() {
         if (name.endsWith(".png")) return "image/png";
         if (name.endsWith(".gif")) return "image/gif";
         if (name.endsWith(".webp")) return "image/webp";
-        return "image/png"; // fallback
+        return "image/png"; 
     }
 
     function renderFile(file: NormalizedFile) {
@@ -506,7 +506,7 @@ export default function Chats() {
                                             }
 
                                             setAttachments(allowed);
-                                            // allow re-selecting the same file(s)
+                                            
                                             e.currentTarget.value = "";
                                         }}
                                     />
