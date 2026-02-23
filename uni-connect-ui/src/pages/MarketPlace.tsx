@@ -133,7 +133,7 @@ export default function MarketPlace() {
             
             const response = await getItemsByUser(userId, token);
             
-            // Handle both direct array and .NET $values wrapper
+           
             let list: MarketplaceItem[] = [];
             if (Array.isArray(response.data)) {
                 list = response.data;
@@ -254,14 +254,14 @@ export default function MarketPlace() {
             await createItem(itemData, token);
             showSuccess("Item added successfully!");
             
-            // Reset form and close modal
+            
             setCreateName("");
             setCreateDescription("");
             setCreatePrice("");
             setCreateFiles([]);
             setCreateOpen(false);
             
-            // Refresh items list
+           
             setTimeout(() => {
                 handleGetItems();
             }, 500);
