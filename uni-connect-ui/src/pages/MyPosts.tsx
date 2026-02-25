@@ -57,7 +57,7 @@ function toImageSrc(value: ApiByteArray, mimeType = "image/jpeg"): string {
         return `data:${mimeType};base64,${value}`;
     }
 
-    // If the API ever returns a numeric byte array instead of base64
+   
     const base64 = bytesToBase64(value);
     return `data:${mimeType};base64,${base64}`;
 }
