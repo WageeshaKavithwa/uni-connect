@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "../styles/marketplace.css";
 import "../styles/events.css";
+
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -8,8 +9,14 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ZoomInIcon from "@mui/icons-material/ZoomIn";
 import ZoomOutIcon from "@mui/icons-material/ZoomOut";
+
 import { showError, showSuccess } from "../components/Toast";
-import { createEvent, deleteEvent, getEvents, getEventsByUser } from "../services/events-api";
+import {
+  createEvent,
+  deleteEvent,
+  getEvents,
+  getEventsByUser,
+} from "../services/events-api";
 
 type ApiByteArray = string | number[];
 
@@ -43,9 +50,33 @@ interface EventItem {
   createdBy?: number | null;
 }
 
+interface ImageModalState {
+  open: boolean;
+  itemId: number | null;
+  images: string[];
+  index: number;
+  zoom: number;
+}
+
+const THUMBNAIL_WIDTH = 1280;
+const THUMBNAIL_HEIGHT = 720;
+const DESCRIPTION_LIMIT = 170;
+
+const INITIAL_IMAGE_MODAL: ImageModalState = {
+  open: false,
+  itemId: null,
+  images: [],
+  index: 0,
+  zoom: 1,
+};
+
 function safeArrayFromDotNet<T>(value: unknown): T[] {
   if (Array.isArray(value)) return value as T[];
-  if (value && typeof value === "object" && Array.isArray((value as any).$values)) {
+  if (
+    value &&
+    typeof value === "object" &&
+    Array.isArray((value as any).$values)
+  ) {
     return (value as any).$values as T[];
   }
   return [];
@@ -54,21 +85,34 @@ function safeArrayFromDotNet<T>(value: unknown): T[] {
 function safeSingleByteArrayFromDotNet(value: unknown): ApiByteArray | null {
   if (!value) return null;
   if (typeof value === "string") return value;
-  if (Array.isArray(value) && value.every((x) => typeof x === "number")) return value as number[];
-  if (value && typeof value === "object" && Array.isArray((value as any).$values)) {
-    const inner = (value as any).$values;
-    if (Array.isArray(inner) && inner.every((x: unknown) => typeof x === "number")) return inner as number[];
+
+  if (Array.isArray(value) && value.every((x) => typeof x === "number")) {
+    return value as number[];
   }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    Array.isArray((value as any).$values)
+  ) {
+    const inner = (value as any).$values;
+    if (Array.isArray(inner) && inner.every((x: unknown) => typeof x === "number")) {
+      return inner as number[];
+    }
+  }
+
   return null;
 }
 
 function bytesToBase64(bytes: number[]): string {
   let binary = "";
   const chunkSize = 0x8000;
+
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.slice(i, i + chunkSize);
     binary += String.fromCharCode(...chunk);
   }
+
   return btoa(binary);
 }
 
@@ -86,30 +130,24 @@ function normalizeEvent(raw: ApiEvent): EventItem | null {
   const id = (raw.Id ?? raw.id) as number | undefined;
   if (!id) return null;
 
-  const name = (raw.EventName ?? raw.eventName ?? "").toString();
-  const description = (raw.EventDescription ?? raw.eventDescription ?? "").toString();
-  const location = (raw.EventLocation ?? raw.eventLocation ?? "").toString();
-  const date = (raw.EventDate ?? raw.eventDate ?? null) as string | null;
-  const thumbnail = raw.EventThumbnail ?? raw.eventThumbnail;
-  const specialNote = (raw.SpecialNote ?? raw.specialNote ?? null) as string | null;
-  const createdBy = (raw.CreatedBy ?? raw.createdBy ?? null) as number | null;
-
   return {
     id,
-    name,
-    description,
-    location,
-    date,
-    thumbnail,
-    specialNote,
-    createdBy,
+    name: (raw.EventName ?? raw.eventName ?? "").toString(),
+    description: (raw.EventDescription ?? raw.eventDescription ?? "").toString(),
+    location: (raw.EventLocation ?? raw.eventLocation ?? "").toString(),
+    date: (raw.EventDate ?? raw.eventDate ?? null) as string | null,
+    thumbnail: raw.EventThumbnail ?? raw.eventThumbnail,
+    specialNote: (raw.SpecialNote ?? raw.specialNote ?? null) as string | null,
+    createdBy: (raw.CreatedBy ?? raw.createdBy ?? null) as number | null,
   };
 }
 
 function formatEventDate(value: string | null): string {
   if (!value) return "";
+
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
+
   return d.toLocaleDateString();
 }
 
@@ -118,6 +156,7 @@ export default function Events() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"all" | "myItems">("all");
+
   const [createOpen, setCreateOpen] = useState(false);
   const [createName, setCreateName] = useState("");
   const [createDate, setCreateDate] = useState("");
@@ -125,26 +164,34 @@ export default function Events() {
   const [createDescription, setCreateDescription] = useState("");
   const [createSpecialNote, setCreateSpecialNote] = useState("");
   const [createThumbnail, setCreateThumbnail] = useState<File | null>(null);
-  const [createThumbnailPreviewUrl, setCreateThumbnailPreviewUrl] = useState<string>("");
+  const [createThumbnailPreviewUrl, setCreateThumbnailPreviewUrl] = useState("");
   const [createSubmitting, setCreateSubmitting] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [menuItemId, setMenuItemId] = useState<number | null>(null);
-  const [imageModal, setImageModal] = useState<{ open: boolean; itemId: number | null; images: string[]; index: number; zoom: number }>
-    ({ open: false, itemId: null, images: [], index: 0, zoom: 1 });
+  const [imageModal, setImageModal] = useState<ImageModalState>(INITIAL_IMAGE_MODAL);
 
   const token = sessionStorage.getItem("jwtToken") || "";
   const userId = parseInt(sessionStorage.getItem("userId") || "0");
+
   const mountedRef = useRef(true);
   const createThumbnailInputRef = useRef<HTMLInputElement | null>(null);
 
-  const THUMBNAIL_WIDTH = 1280;
-  const THUMBNAIL_HEIGHT = 720;
+  const resetCreateForm = () => {
+    setCreateName("");
+    setCreateDate("");
+    setCreateLocation("");
+    setCreateDescription("");
+    setCreateSpecialNote("");
+    setCreateThumbnail(null);
+  };
 
-  const handleGetItems = async () => {
+  const fetchAndSetItems = async (fetchFn: () => Promise<any>, errorMessage: string) => {
     try {
       setLoading(true);
       setError(null);
-      const response = await getEvents(token);
+
+      const response = await fetchFn();
 
       const list = safeArrayFromDotNet<ApiEvent>(response.data)
         .map(normalizeEvent)
@@ -152,18 +199,23 @@ export default function Events() {
 
       setItems(list);
     } catch (err) {
-      console.error("Error fetching events:", err);
+      console.error(errorMessage, err);
       setItems([]);
-      setError("Failed to load events");
+      setError(errorMessage.includes("my") ? "Failed to load your events" : "Failed to load events");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGetItems = async () => {
+    await fetchAndSetItems(() => getEvents(token), "Error fetching events:");
   };
 
   const handleGetMyItems = async () => {
     try {
       setLoading(true);
       setError(null);
+
       if (!userId || userId === 0) {
         setItems([]);
         setError("User not found");
@@ -211,29 +263,33 @@ export default function Events() {
       const desc = (item.description ?? "").toLowerCase();
       const loc = (item.location ?? "").toLowerCase();
       const note = (item.specialNote ?? "").toLowerCase();
-      return name.includes(term) || desc.includes(term) || loc.includes(term) || note.includes(term);
+
+      return (
+        name.includes(term) ||
+        desc.includes(term) ||
+        loc.includes(term) ||
+        note.includes(term)
+      );
     });
   }, [items, searchTerm]);
 
   useEffect(() => {
     if (menuItemId === null) return;
+
     const onMouseDown = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+
       const menu = target.closest(".itemMenuWrapper");
       if (!menu) setMenuItemId(null);
     };
+
     window.addEventListener("mousedown", onMouseDown);
     return () => window.removeEventListener("mousedown", onMouseDown);
   }, [menuItemId]);
 
   const openCreate = () => {
-    setCreateName("");
-    setCreateDate("");
-    setCreateLocation("");
-    setCreateDescription("");
-    setCreateSpecialNote("");
-    setCreateThumbnail(null);
+    resetCreateForm();
     setCreateOpen(true);
   };
 
@@ -250,6 +306,7 @@ export default function Events() {
 
     const url = URL.createObjectURL(createThumbnail);
     setCreateThumbnailPreviewUrl(url);
+
     return () => URL.revokeObjectURL(url);
   }, [createThumbnail]);
 
@@ -260,6 +317,7 @@ export default function Events() {
     }
 
     const objectUrl = URL.createObjectURL(file);
+
     try {
       const img = new Image();
       const loaded = await new Promise<boolean>((resolve) => {
@@ -277,7 +335,9 @@ export default function Events() {
       const h = (img as any).naturalHeight ?? img.height;
 
       if (w !== THUMBNAIL_WIDTH || h !== THUMBNAIL_HEIGHT) {
-        showError(`Thumbnail must be exactly ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT} (YouTube thumbnail size)`);
+        showError(
+          `Thumbnail must be exactly ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT} (YouTube thumbnail size)`
+        );
         return false;
       }
 
@@ -292,11 +352,7 @@ export default function Events() {
     if (!file) return;
 
     const ok = await validateThumbnailSize(file);
-    if (!ok) {
-      setCreateThumbnail(null);
-    } else {
-      setCreateThumbnail(file);
-    }
+    setCreateThumbnail(ok ? file : null);
 
     if (createThumbnailInputRef.current) {
       createThumbnailInputRef.current.value = "";
@@ -340,13 +396,9 @@ export default function Events() {
       showSuccess("Event created successfully!");
 
       if (!mountedRef.current) return;
+
       setCreateOpen(false);
-      setCreateName("");
-      setCreateDate("");
-      setCreateLocation("");
-      setCreateDescription("");
-      setCreateSpecialNote("");
-            setCreateThumbnail(null);
+      resetCreateForm();
 
       setTimeout(() => {
         if (viewMode === "myItems") handleGetMyItems();
@@ -368,6 +420,7 @@ export default function Events() {
       await deleteEvent(eventId, userId, token);
       showSuccess("Event deleted");
       setMenuItemId(null);
+
       if (viewMode === "myItems") {
         await handleGetMyItems();
       } else {
@@ -387,20 +440,28 @@ export default function Events() {
   };
 
   const closeImageModal = () => {
-    setImageModal({ open: false, itemId: null, images: [], index: 0, zoom: 1 });
+    setImageModal(INITIAL_IMAGE_MODAL);
   };
 
   const prevImage = () => {
     setImageModal((m) => {
       if (!m.open || m.images.length === 0) return m;
-      return { ...m, index: (m.index - 1 + m.images.length) % m.images.length, zoom: 1 };
+      return {
+        ...m,
+        index: (m.index - 1 + m.images.length) % m.images.length,
+        zoom: 1,
+      };
     });
   };
 
   const nextImage = () => {
     setImageModal((m) => {
       if (!m.open || m.images.length === 0) return m;
-      return { ...m, index: (m.index + 1) % m.images.length, zoom: 1 };
+      return {
+        ...m,
+        index: (m.index + 1) % m.images.length,
+        zoom: 1,
+      };
     });
   };
 
@@ -427,11 +488,13 @@ export default function Events() {
 
   useEffect(() => {
     if (!imageModal.open) return;
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeImageModal();
       if (e.key === "ArrowLeft") prevImage();
       if (e.key === "ArrowRight") nextImage();
     };
+
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -441,6 +504,7 @@ export default function Events() {
     <div className="marketPlacePage eventsPage">
       <div className="marketPlaceHeader">
         <h2 className="marketPlaceTitle">Events</h2>
+
         <div className="marketPlaceSearch">
           <input
             type="search"
@@ -452,6 +516,7 @@ export default function Events() {
             disabled={loading}
           />
         </div>
+
         <div className="marketPlaceToolbarActions">
           <div className="marketPlaceViewToggle">
             <button
@@ -461,6 +526,7 @@ export default function Events() {
             >
               All Events
             </button>
+
             <button
               type="button"
               className={`marketPlaceViewBtn ${viewMode === "myItems" ? "active" : ""}`}
@@ -469,6 +535,7 @@ export default function Events() {
               My Events
             </button>
           </div>
+
           <button
             type="button"
             className="marketPlaceCreateButton"
@@ -504,9 +571,10 @@ export default function Events() {
             const thumb = safeSingleByteArrayFromDotNet(item.thumbnail);
             const displayImages = thumb ? [toImageSrc(thumb)] : [];
             const description = item.description ?? "";
-            const descriptionLimit = 170;
-            const shouldTruncateDesc = description.length > descriptionLimit;
-            const descriptionText = shouldTruncateDesc ? `${description.slice(0, descriptionLimit)}…` : description;
+            const shouldTruncateDesc = description.length > DESCRIPTION_LIMIT;
+            const descriptionText = shouldTruncateDesc
+              ? `${description.slice(0, DESCRIPTION_LIMIT)}…`
+              : description;
             const dateText = formatEventDate(item.date);
             const isMine = viewMode === "myItems" && item.createdBy === userId;
 
@@ -519,9 +587,15 @@ export default function Events() {
                       className="itemImageButton"
                       onClick={() => openImageModal(item.id, displayImages)}
                     >
-                      <img src={displayImages[0]} alt={item.name} className="itemImage" />
+                      <img
+                        src={displayImages[0]}
+                        alt={item.name}
+                        className="itemImage"
+                      />
                       {displayImages.length > 1 && (
-                        <div className="itemImageCount">{displayImages.length} images</div>
+                        <div className="itemImageCount">
+                          {displayImages.length} images
+                        </div>
                       )}
                     </button>
                   </div>
@@ -542,17 +616,21 @@ export default function Events() {
 
                     <div className="itemHeaderRight">
                       {dateText && <div className="itemPrice">{dateText}</div>}
+
                       {isMine && (
                         <div className="itemMenuWrapper">
                           <button
                             type="button"
                             className="itemMenuButton"
-                            onClick={() => setMenuItemId((prev) => (prev === item.id ? null : item.id))}
+                            onClick={() =>
+                              setMenuItemId((prev) => (prev === item.id ? null : item.id))
+                            }
                             aria-haspopup="menu"
                             aria-expanded={menuItemId === item.id}
                           >
                             <MoreVertIcon fontSize="small" />
                           </button>
+
                           {menuItemId === item.id && (
                             <div className="itemMenu" role="menu">
                               <button
@@ -578,7 +656,9 @@ export default function Events() {
 
                   {item.specialNote && (
                     <div className="itemDescription">
-                      <p className="descriptionText"><strong>Note:</strong> {item.specialNote}</p>
+                      <p className="descriptionText">
+                        <strong>Note:</strong> {item.specialNote}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -601,7 +681,10 @@ export default function Events() {
             </button>
 
             <div className="imageModalViewer">
-              <div className="imageContainer" style={{ transform: `scale(${imageModal.zoom})` }}>
+              <div
+                className="imageContainer"
+                style={{ transform: `scale(${imageModal.zoom})` }}
+              >
                 <img
                   src={imageModal.images[imageModal.index]}
                   alt={`Image ${imageModal.index + 1}`}
@@ -619,7 +702,11 @@ export default function Events() {
                 >
                   <ZoomOutIcon />
                 </button>
-                <span className="zoomLevel">{(imageModal.zoom * 100).toFixed(0)}%</span>
+
+                <span className="zoomLevel">
+                  {(imageModal.zoom * 100).toFixed(0)}%
+                </span>
+
                 <button
                   type="button"
                   className="zoomButton"
@@ -629,6 +716,7 @@ export default function Events() {
                 >
                   <ZoomInIcon />
                 </button>
+
                 <button
                   type="button"
                   className="zoomButton"
@@ -651,6 +739,7 @@ export default function Events() {
                 >
                   <ChevronLeftIcon />
                 </button>
+
                 <button
                   type="button"
                   className="imageNextBtn"
@@ -746,7 +835,10 @@ export default function Events() {
               </div>
 
               <div className="formGroup">
-                <label className="formLabel">Thumbnail (Required: 1280x720)</label>
+                <label className="formLabel">
+                  Thumbnail (Required: 1280x720)
+                </label>
+
                 <div className="fileInputWrapper">
                   <input
                     ref={createThumbnailInputRef}
@@ -756,6 +848,7 @@ export default function Events() {
                     disabled={createSubmitting}
                     style={{ display: "none" }}
                   />
+
                   <button
                     type="button"
                     className="filePickerButton"
@@ -765,15 +858,22 @@ export default function Events() {
                     <AddIcon fontSize="small" />
                     Pick Thumbnail
                   </button>
+
                   <div className="filePickerHint">
-                    {createThumbnail ? "1 thumbnail selected" : `Upload ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT} image`}
+                    {createThumbnail
+                      ? "1 thumbnail selected"
+                      : `Upload ${THUMBNAIL_WIDTH}x${THUMBNAIL_HEIGHT} image`}
                   </div>
                 </div>
 
                 {createThumbnailPreviewUrl && (
                   <div className="previewGrid">
                     <div className="previewItem">
-                      <img src={createThumbnailPreviewUrl} alt="Thumbnail preview" className="previewImage" />
+                      <img
+                        src={createThumbnailPreviewUrl}
+                        alt="Thumbnail preview"
+                        className="previewImage"
+                      />
                       <button
                         type="button"
                         className="removePreviewBtn"
@@ -798,6 +898,7 @@ export default function Events() {
               >
                 Cancel
               </button>
+
               <button
                 type="button"
                 className="submitButton"
