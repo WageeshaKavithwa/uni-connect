@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import "../styles/navbar.css";
 import logo from "../assets/uni-connect-sm.png";
@@ -46,18 +46,28 @@ type NavbarUser = {
 
 function safeArrayFromDotNet<T>(value: unknown): T[] {
     if (Array.isArray(value)) return value as T[];
+
     if (value && typeof value === "object" && Array.isArray((value as any).$values)) {
         return (value as any).$values as T[];
     }
+
     return [];
 }
 
 function normalizeUser(raw: ApiUser): NavbarUser | null {
     const id = (raw.Id ?? raw.id) as number | undefined;
     if (!id) return null;
+
     const username = (raw.Username ?? raw.username ?? "").toString().trim();
     if (!username) return { id, username: "Unknown" };
+
     return { id, username };
+}
+
+function isPathInGroup(pathname: string, group: NavGroup) {
+    return group.children.some(
+        (child) => pathname === child.to || pathname.startsWith(`${child.to}/`)
+    );
 }
 
 function IconMenu(props: React.SVGProps<SVGSVGElement>) {
@@ -87,7 +97,7 @@ function IconChevronRight(props: React.SVGProps<SVGSVGElement>) {
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" {...props}>
             <path
                 fill="currentColor"
-                d="M8.3 18.7a1 1 0 0 1 0-1.4l5.3-5.3-5.3-5.3a1 1 0 0 1 1.4-1.4l6 6a1 1 0 0 1 0 1.4l-6 6a1 1 0 0 1-1.4 0Z"
+                d="M8.3 18.7a1 1 0 0 1 0-1.4l5.3-5.3-5.3-5.3a1 1 0 1 0-1.4-1.4l6 6a1 1 0 0 0 0 1.4l-6 6a1 1 0 0 0 1.4 0Z"
             />
         </svg>
     );
@@ -108,126 +118,112 @@ const NAV_ROOT: NavLeaf[] = [
     { to: "/app/posts", icon: <PostAdd />, label: "Posts" },
     { to: "/app/myposts", icon: <AssignmentInd />, label: "My Posts" },
     { to: "/app/favouriteposts", icon: <Favorite />, label: "Favourite Posts" },
-    {to: "/app/marketplace", icon: <Storefront />, label: "Market Place" },
-    {to: "/app/chats", icon: <Forum />, label: "Chats" },
-    {to: "/app/events", icon: <Event />, label: "Events" },
+    { to: "/app/marketplace", icon: <Storefront />, label: "Market Place" },
+    { to: "/app/chats", icon: <Forum />, label: "Chats" },
+    { to: "/app/events", icon: <Event />, label: "Events" },
 ];
 
-const NAV_GROUPS: NavGroup[] = [
-];
-
-function isPathInGroup(pathname: string, group: NavGroup) {
-    return group.children.some((c) => pathname === c.to || pathname.startsWith(c.to + "/"));
-}
+const NAV_GROUPS: NavGroup[] = [];
 
 export default function Navbar({ children }: NavbarProps) {
-    const [isMobileOpen, setIsMobileOpen] = React.useState(false);
-    const [isCollapsed, setIsCollapsed] = React.useState(false);
-    const [unreadChatCount, setUnreadChatCount] = React.useState(0);
-    const [users, setUsers] = React.useState<NavbarUser[]>([]);
-    const [userSearch, setUserSearch] = React.useState("");
-    const [userSearchOpen, setUserSearchOpen] = React.useState(false);
-    const [userSearchLoading, setUserSearchLoading] = React.useState(false);
     const location = useLocation();
     const navigate = useNavigate();
 
     const userSearchRef = useRef<HTMLDivElement | null>(null);
+    const clickTimerRef = useRef<number | null>(null);
 
-    const username = sessionStorage.getItem('userName') || 'User';
-    const userType = sessionStorage.getItem('userType') || 'User';
-    const token = sessionStorage.getItem('jwtToken') || '';
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
+    const [users, setUsers] = useState<NavbarUser[]>([]);
+    const [userSearch, setUserSearch] = useState("");
+    const [userSearchOpen, setUserSearchOpen] = useState(false);
+    const [userSearchLoading, setUserSearchLoading] = useState(false);
+
+    const username = sessionStorage.getItem("userName") || "User";
+    const userType = sessionStorage.getItem("userType") || "User";
+    const token = sessionStorage.getItem("jwtToken") || "";
     const me = Number(sessionStorage.getItem("userId") || "0");
 
-    const handleGetUsers = async () => {
+    const handleGetUsers = useCallback(async () => {
         try {
             setUserSearchLoading(true);
+
             const res = await getUsers();
             const list = safeArrayFromDotNet<ApiUser>(res.data)
                 .map(normalizeUser)
-                .filter((x): x is NavbarUser => x !== null);
+                .filter((user): user is NavbarUser => user !== null);
+
             setUsers(list || []);
-        } catch (error) {
+        } catch {
             setUsers([]);
         } finally {
             setUserSearchLoading(false);
         }
-    }
+    }, []);
 
     const handleGetUnreadChatCount = useCallback(async () => {
         try {
-            const res = await getUnreadChatCount(sessionStorage.getItem('jwtToken') || '', Number(sessionStorage.getItem('userId')));
+            const storedToken = sessionStorage.getItem("jwtToken") || "";
+            const storedUserId = Number(sessionStorage.getItem("userId"));
+
+            const res = await getUnreadChatCount(storedToken, storedUserId);
             setUnreadChatCount(res.data || 0);
         } catch {
             setUnreadChatCount(0);
         }
     }, []);
 
-    useEffect(() => {
-        handleGetUnreadChatCount();
-        handleGetUsers();
-    }, []);
-
-    // call unread-count on any click (debounced)
-    const clickTimerRef = useRef<number | null>(null);
-    useEffect(() => {
-        const onClick = () => {
-            if (clickTimerRef.current) window.clearTimeout(clickTimerRef.current);
-            clickTimerRef.current = window.setTimeout(() => {
-                handleGetUnreadChatCount();
-            }, 250) as unknown as number;
-        };
-        document.addEventListener("click", onClick);
-        return () => {
-            document.removeEventListener("click", onClick);
-            if (clickTimerRef.current) window.clearTimeout(clickTimerRef.current);
-        };
-    }, [handleGetUnreadChatCount]);
-
-    const initialOpenGroups = React.useMemo(() => {
+    const initialOpenGroups = useMemo(() => {
         const open = new Set<string>();
+
         for (const group of NAV_GROUPS) {
-            if (isPathInGroup(location.pathname, group)) open.add(group.id);
+            if (isPathInGroup(location.pathname, group)) {
+                open.add(group.id);
+            }
         }
+
         return open;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const [openGroups, setOpenGroups] = React.useState<Set<string>>(initialOpenGroups);
+    const [openGroups, setOpenGroups] = useState<Set<string>>(initialOpenGroups);
 
-    React.useEffect(() => {
-        if (!token) {
-            navigate("/");
-        }
-    }, [token]);
+    const filteredUsers = useMemo(() => {
+        const query = userSearch.trim().toLowerCase();
+        const otherUsers = users.filter((user) => user.id !== me);
 
-    React.useEffect(() => {
-        if (!userSearchOpen) return;
-        const onMouseDown = (e: MouseEvent) => {
-            const target = e.target as Node | null;
-            if (!target) return;
-            if (userSearchRef.current && !userSearchRef.current.contains(target)) {
-                setUserSearchOpen(false);
-            }
-        };
-        window.addEventListener("mousedown", onMouseDown);
-        return () => window.removeEventListener("mousedown", onMouseDown);
-    }, [userSearchOpen]);
+        if (!query) return otherUsers;
 
-    React.useEffect(() => {
-        if (!userSearchOpen) return;
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setUserSearchOpen(false);
-        };
-        window.addEventListener("keydown", onKeyDown);
-        return () => window.removeEventListener("keydown", onKeyDown);
-    }, [userSearchOpen]);
-
-    const filteredUsers = React.useMemo(() => {
-        const q = userSearch.trim().toLowerCase();
-        const list = users.filter((u) => u.id !== me);
-        if (!q) return list;
-        return list.filter((u) => u.username.toLowerCase().includes(q));
+        return otherUsers.filter((user) =>
+            user.username.toLowerCase().includes(query)
+        );
     }, [users, userSearch, me]);
+
+    const content = children ?? <Outlet />;
+
+    const toggleGroup = (groupId: string) => {
+        setOpenGroups((prev) => {
+            const next = new Set(prev);
+
+            if (next.has(groupId)) {
+                next.delete(groupId);
+            } else {
+                next.add(groupId);
+            }
+
+            return next;
+        });
+    };
+
+    const handleLogout = () => {
+        if (!window.confirm("Are you sure you want to logout?")) {
+            return;
+        }
+
+        sessionStorage.clear();
+        navigate("/");
+    };
 
     const openChatWithUser = useCallback(
         async (otherUserId: number, otherUsername: string) => {
@@ -239,6 +235,7 @@ export default function Navbar({ children }: NavbarProps) {
 
             try {
                 const res = await checkChatExists(token, me, otherUserId);
+
                 if (res.data === true) {
                     navigate("/app/chats", {
                         state: {
@@ -249,8 +246,14 @@ export default function Navbar({ children }: NavbarProps) {
                     return;
                 }
 
-                const created = await createChat(token, { user1: me, user2: otherUserId });
-                const conversationId = (created.data?.id ?? created.data?.Id) as number | undefined;
+                const created = await createChat(token, {
+                    user1: me,
+                    user2: otherUserId,
+                });
+
+                const conversationId = (created.data?.id ??
+                    created.data?.Id) as number | undefined;
+
                 navigate("/app/chats", {
                     state: {
                         openConversationId: conversationId,
@@ -266,52 +269,99 @@ export default function Navbar({ children }: NavbarProps) {
         [me, navigate, token]
     );
 
-    React.useEffect(() => {
+    useEffect(() => {
+        handleGetUnreadChatCount();
+        handleGetUsers();
+    }, [handleGetUnreadChatCount, handleGetUsers]);
+
+    useEffect(() => {
+        const onClick = () => {
+            if (clickTimerRef.current) {
+                window.clearTimeout(clickTimerRef.current);
+            }
+
+            clickTimerRef.current = window.setTimeout(() => {
+                handleGetUnreadChatCount();
+            }, 250) as unknown as number;
+        };
+
+        document.addEventListener("click", onClick);
+
+        return () => {
+            document.removeEventListener("click", onClick);
+
+            if (clickTimerRef.current) {
+                window.clearTimeout(clickTimerRef.current);
+            }
+        };
+    }, [handleGetUnreadChatCount]);
+
+    useEffect(() => {
+        if (!token) {
+            navigate("/");
+        }
+    }, [token, navigate]);
+
+    useEffect(() => {
+        if (!userSearchOpen) return;
+
+        const onMouseDown = (e: MouseEvent) => {
+            const target = e.target as Node | null;
+            if (!target) return;
+
+            if (userSearchRef.current && !userSearchRef.current.contains(target)) {
+                setUserSearchOpen(false);
+            }
+        };
+
+        window.addEventListener("mousedown", onMouseDown);
+        return () => window.removeEventListener("mousedown", onMouseDown);
+    }, [userSearchOpen]);
+
+    useEffect(() => {
+        if (!userSearchOpen) return;
+
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                setUserSearchOpen(false);
+            }
+        };
+
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [userSearchOpen]);
+
+    useEffect(() => {
         if (!isMobileOpen) return;
 
         const onKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape") setIsMobileOpen(false);
+            if (e.key === "Escape") {
+                setIsMobileOpen(false);
+            }
         };
 
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [isMobileOpen]);
 
-    React.useEffect(() => {
+    useEffect(() => {
         setOpenGroups((prev) => {
             const next = new Set(prev);
+
             for (const group of NAV_GROUPS) {
-                if (isPathInGroup(location.pathname, group)) next.add(group.id);
+                if (isPathInGroup(location.pathname, group)) {
+                    next.add(group.id);
+                }
             }
+
             return next;
         });
     }, [location.pathname]);
 
-    const toggleGroup = (groupId: string) => {
-        setOpenGroups((prev) => {
-            const next = new Set(prev);
-            if (next.has(groupId)) next.delete(groupId);
-            else next.add(groupId);
-            return next;
-        });
-    };
-
-    const content = children ?? <Outlet />;
-
-    const handleLogout = () => {
-
-        if(!window.confirm("Are you sure you want to logout?")) {
-            return;
-        }
-
-        sessionStorage.clear();
-        navigate("/");
-    };
-
     return (
         <div className="appFrame">
             <div
-                className={"appOverlay" + (isMobileOpen ? " appOverlayOpen" : "")}
+                className={`appOverlay${isMobileOpen ? " appOverlayOpen" : ""}`}
                 onClick={() => setIsMobileOpen(false)}
                 aria-hidden={!isMobileOpen}
             />
@@ -342,7 +392,7 @@ export default function Navbar({ children }: NavbarProps) {
                         className="appIconBtn appCollapseBtn"
                         aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                         aria-pressed={isCollapsed}
-                        onClick={() => setIsCollapsed((v) => !v)}
+                        onClick={() => setIsCollapsed((prev) => !prev)}
                     >
                         {isCollapsed ? <IconChevronRight /> : <IconChevronLeft />}
                     </button>
@@ -356,7 +406,7 @@ export default function Navbar({ children }: NavbarProps) {
                                 to={leaf.to}
                                 end
                                 className={({ isActive }) =>
-                                    "appNavLink" + (isActive ? " appNavLinkActive" : "")
+                                    `appNavLink${isActive ? " appNavLinkActive" : ""}`
                                 }
                                 title={leaf.label}
                                 onClick={() => setIsMobileOpen(false)}
@@ -366,14 +416,14 @@ export default function Navbar({ children }: NavbarProps) {
                                 </span>
                                 <span className="appNavLabel">{leaf.label}</span>
 
-                               {leaf.to === "/app/chats" && unreadChatCount > 0 ? (
-                                   <span
-                                       className="unreadBadge"
-                                       aria-label={`${unreadChatCount} unread messages`}
-                                   >
-                                       {unreadChatCount > 99 ? "99+" : unreadChatCount}
-                                   </span>
-                               ) : null}
+                                {leaf.to === "/app/chats" && unreadChatCount > 0 ? (
+                                    <span
+                                        className="unreadBadge"
+                                        aria-label={`${unreadChatCount} unread messages`}
+                                    >
+                                        {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                                    </span>
+                                ) : null}
                             </NavLink>
                         ))}
                     </div>
@@ -400,9 +450,7 @@ export default function Navbar({ children }: NavbarProps) {
                                     <span className="appNavLabel">{group.label}</span>
                                     <span className="appNavChevron" aria-hidden="true">
                                         <IconChevronDown
-                                            className={
-                                                "appChevron" + (isOpen ? " appChevronOpen" : "")
-                                            }
+                                            className={`appChevron${isOpen ? " appChevronOpen" : ""}`}
                                         />
                                     </span>
                                 </button>
@@ -418,7 +466,7 @@ export default function Navbar({ children }: NavbarProps) {
                                             key={child.to}
                                             to={child.to}
                                             className={({ isActive }) =>
-                                                "appNavChild" + (isActive ? " appNavChildActive" : "")
+                                                `appNavChild${isActive ? " appNavChildActive" : ""}`
                                             }
                                             title={child.label}
                                             onClick={() => setIsMobileOpen(false)}
@@ -436,7 +484,9 @@ export default function Navbar({ children }: NavbarProps) {
                 <div className="appSidebarFooter" aria-label="Sidebar footer">
                     <div className="appSidebarFooterLeft">
                         <div className="appAvatar" aria-hidden="true">
-                            <span className="appAvatarText">{username.charAt(0).toUpperCase()}</span>
+                            <span className="appAvatarText">
+                                {username.charAt(0).toUpperCase()}
+                            </span>
                         </div>
                         <div className="appUserMeta">
                             <div className="appUserName">{username}</div>
@@ -476,7 +526,9 @@ export default function Navbar({ children }: NavbarProps) {
                                 value={userSearch}
                                 onFocus={() => {
                                     setUserSearchOpen(true);
-                                    if (users.length === 0 && !userSearchLoading) handleGetUsers();
+                                    if (users.length === 0 && !userSearchLoading) {
+                                        handleGetUsers();
+                                    }
                                 }}
                                 onChange={(e) => {
                                     setUserSearch(e.target.value);
@@ -495,19 +547,24 @@ export default function Navbar({ children }: NavbarProps) {
                                         <div className="appUserSearchEmpty">No users found</div>
                                     )}
 
-                                    {!userSearchLoading && filteredUsers.length > 0 &&
-                                        filteredUsers.map((u) => (
+                                    {!userSearchLoading &&
+                                        filteredUsers.length > 0 &&
+                                        filteredUsers.map((user) => (
                                             <button
-                                                key={u.id}
+                                                key={user.id}
                                                 type="button"
                                                 className="appUserSearchItem"
                                                 role="option"
-                                                onClick={() => openChatWithUser(u.id, u.username)}
+                                                onClick={() =>
+                                                    openChatWithUser(user.id, user.username)
+                                                }
                                             >
                                                 <span className="appUserSearchAvatar" aria-hidden="true">
-                                                    {u.username.charAt(0).toUpperCase()}
+                                                    {user.username.charAt(0).toUpperCase()}
                                                 </span>
-                                                <span className="appUserSearchName">{u.username}</span>
+                                                <span className="appUserSearchName">
+                                                    {user.username}
+                                                </span>
                                             </button>
                                         ))}
                                 </div>
@@ -537,7 +594,9 @@ export default function Navbar({ children }: NavbarProps) {
 
                     <button type="button" className="appTopbarAvatarBtn" aria-label="Account">
                         <div className="appAvatar" aria-hidden="true">
-                            <span className="appAvatarText">{username.charAt(0).toUpperCase()}</span>
+                            <span className="appAvatarText">
+                                {username.charAt(0).toUpperCase()}
+                            </span>
                         </div>
                     </button>
                 </header>
