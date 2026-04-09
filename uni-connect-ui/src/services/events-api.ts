@@ -1,7 +1,14 @@
 import axios from "axios";
 import { getEnv } from "../env";
 
-const API_URL = getEnv().API_URL + "/Event"
+const API_URL = `${getEnv().API_URL}/Event`;
+
+const getAuthHeaders = (token: string, isMultipart = false) => ({
+    headers: {
+        ...(isMultipart && { "Content-Type": "multipart/form-data" }),
+        Authorization: `Bearer ${token}`,
+    },
+});
 
 export const createEvent = async (eventData: any, token: string) => {
     try {
@@ -18,53 +25,36 @@ export const createEvent = async (eventData: any, token: string) => {
             form.append("Thumbnail", eventData.Thumbnail);
         }
 
-        const response = await axios.post(`${API_URL}`, form, {
-            headers: {
-                "Content-Type": "multipart/form-data",
-                Authorization: `Bearer ${token}`
-            }
-        });
+        const response = await axios.post(API_URL, form, getAuthHeaders(token, true));
         return response;
     } catch (error) {
         throw error;
     }
-}
+};
 
 export const getEvents = async (token: string) => {
     try {
-        const response = await axios.get(`${API_URL}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        const response = await axios.get(API_URL, getAuthHeaders(token));
         return response;
     } catch (error) {
         throw error;
     }
-}
+};
 
 export const getEventsByUser = async (userId: number, token: string) => {
     try {
-        const response = await axios.get(`${API_URL}/${userId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        const response = await axios.get(`${API_URL}/${userId}`, getAuthHeaders(token));
         return response;
     } catch (error) {
         throw error;
     }
-}
+};
 
 export const deleteEvent = async (eventId: number, userId: number, token: string) => {
     try {
-        const response = await axios.delete(`${API_URL}/${eventId}/${userId}`, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
+        const response = await axios.delete(`${API_URL}/${eventId}/${userId}`, getAuthHeaders(token));
         return response;
     } catch (error) {
         throw error;
     }
-}
+};
